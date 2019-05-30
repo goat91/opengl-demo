@@ -1,20 +1,21 @@
 #include "image.h"
-#include <string.h>
 #include "gl_error.h"
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <string.h>
 
 
-guint8 *read_image_pixels(uint8_t *pixels_buf, const gchar *filename, int *width, int *height, int *channels, int *stride, GError **error) {
+uint8_t *read_image_pixels(uint8_t *pixels_buf, const char *filename, int *width, int *height, int *channels, int *stride) {
     GdkPixbuf *pixbuf;
-    const guint8 *pixels;
-    guint8 *result;
+    const uint8_t *pixels;
+    uint8_t *result;
+    GError *error = NULL;
 
-    pixbuf = gdk_pixbuf_new_from_file(filename, error);
+    pixbuf = gdk_pixbuf_new_from_file(filename, &error);
     if (!pixbuf) {
+        g_printerr("%s: failed to create pixbuf: %s\n", __func__, error->message);
+        g_error_free(error);
         return NULL;
     }
-
-
-    g_printerr("has_alpha: %d, stride %d\n", gdk_pixbuf_get_has_alpha(pixbuf), gdk_pixbuf_get_rowstride(pixbuf));
 
     *width = gdk_pixbuf_get_width(pixbuf);
     *height = gdk_pixbuf_get_height(pixbuf);
@@ -23,23 +24,20 @@ guint8 *read_image_pixels(uint8_t *pixels_buf, const gchar *filename, int *width
 
     pixels = gdk_pixbuf_read_pixels(pixbuf);
 
-    if (!pixels_buf)
+    result = pixels_buf;
+    if (!result) {
         result = g_malloc0(*height * *stride);
-    else
-        result = pixels_buf;
-    if (result) {
-        result = memcpy(result, pixels, *height * *stride);
-    } else {
-        if (error)
-            *error = g_error_new(G_MALLOC_ERROR, 1, "Failed to malloc memory");
+        g_printerr("%s: failed to alloc memory\n", __func__);
+        return NULL;
     }
 
+    result = memcpy(result, pixels, *height * *stride);
     g_object_unref(pixbuf);
     return result;
 }
 
 
-void free_image_pixels(guint8 *pixels)
+void free_image_pixels(uint8_t *pixels)
 {
     g_free(pixels);
 }
